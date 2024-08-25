@@ -9,6 +9,5 @@ langchain_chroma
 langchainhub
 pypdf
 rapidocr-onnxruntime
-chromadb
 rank_bm25
 typing
