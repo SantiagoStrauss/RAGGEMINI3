@@ -12,3 +12,4 @@ rapidocr-onnxruntime
 rank_bm25
 typing
 chromadb
+pysqlite3-binary
