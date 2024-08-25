@@ -11,3 +11,4 @@ pypdf
 rapidocr-onnxruntime
 rank_bm25
 typing
+chromadb
