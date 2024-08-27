@@ -13,3 +13,5 @@ rank_bm25
 typing
 chromadb
 pysqlite3-binary
+sentence_transformers
+langchain.schema
