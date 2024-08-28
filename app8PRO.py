@@ -174,7 +174,7 @@ def main():
 
     # Initialize the language model with streaming
     streaming_handler = StreamingStdOutCallbackHandler()
-    llm = ChatGoogleGenerativeAI(model=CHAT_MODEL, temperature=0.2, max_tokens=150, timeout=None, streaming=True, callbacks=[streaming_handler])
+    llm = ChatGoogleGenerativeAI(model=CHAT_MODEL, temperature=0.1, max_tokens=150, timeout=None, streaming=True, callbacks=[streaming_handler])
 
     # Create prompt template
     prompt = ChatPromptTemplate.from_messages([
