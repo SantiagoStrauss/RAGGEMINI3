@@ -17,4 +17,4 @@ numpy
 spacy
 scikit-learn
 voyageai
-https://github.com/explosion/spacy-models/releases/download/es_core_news_sm-3.7.6/es_core_news_sm-3.5.0.tar.gz
+https://huggingface.co/spacy/es_core_news_sm/resolve/main/es_core_news_sm-any-py3-none-any.whl
