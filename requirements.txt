@@ -6,11 +6,13 @@ streamlit
 langchain_experimental
 sentence-transformers
 langchain_chroma
-langchainhub
+langchainhub    
 pypdf
 rapidocr-onnxruntime
+chromadb
 rank_bm25
 typing
-chromadb
-pysqlite3-binary
-sentence_transformers
+numpy
+spacy
+scikit-learn
+voyageai
