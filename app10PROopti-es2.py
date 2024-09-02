@@ -30,7 +30,6 @@ import voyageai
 from langchain.embeddings.base import Embeddings
 
 # Using spacy.load().
-import spacy
 nlp = spacy.load("es_core_news_sm")
 
 # Cargar variables de entorno y configurar el registro
