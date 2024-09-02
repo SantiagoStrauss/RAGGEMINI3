@@ -29,6 +29,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import voyageai
 from langchain.embeddings.base import Embeddings
 
+# Load spaCy model
+nlp = spacy.load("es_core_news_sm")
+
 # Cargar variables de entorno y configurar el registro
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
