@@ -19,36 +19,47 @@ from langchain.schema import Document
 from sentence_transformers import CrossEncoder
 import numpy as np
 import json
-import spacy
-from spacy.lang.es.stop_words import STOP_WORDS
-from langchain.text_splitter import SpacyTextSplitter
 from collections import defaultdict
 import heapq
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import voyageai
 from langchain.embeddings.base import Embeddings
+from langchain.text_splitter import SpacyTextSplitter
 
+# Streamlit-specific imports and configurations
+import streamlit as st
+import spacy
+from spacy.lang.es.stop_words import STOP_WORDS
 
-# Cargar variables de entorno y configurar el registro
+# Load environment variables and configure logging
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Configuración de la aplicación Streamlit
+# Streamlit page configuration
 st.set_page_config(page_title="Sistema de Recuperación de Documentos", layout="wide")
 st.title("Sistema de Recuperación de Documentos")
 
-# Configuración
+# Configuration
 PDF_FILES = ["NICSP en su bolsillo 2020.pdf", "Resolución 533 de 2015 Contaduría General de la Nación.pdf", "resolucion_contaduria_0414_2014.pdf"]
 EMBEDDING_MODEL = "voyage-multilingual-2"
 CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-1.5-flash")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", 1000))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200))
 
-# Cargar modelo de lenguaje español
-nlp = spacy.load("es_core_news_sm")
+# Load Spanish language model
+@st.cache_resource
+def load_spacy_model():
+    try:
+        return spacy.load("es_core_news_sm")
+    except IOError:
+        st.error("Failed to load Spanish language model. Please check your deployment settings.")
+        st.stop()
 
+nlp = load_spacy_model()
+
+# VoyageAI Embeddings
 class VoyageAIEmbeddings(Embeddings):
     def __init__(self, model: str = "voyage-multilingual-2", batch_size: int = 128):
         self.model = model
@@ -121,6 +132,7 @@ class BM25LRetriever:
         doc_scores = self.bm25.get_scores(tokenized_query)
         return heapq.nlargest(top_k, enumerate(doc_scores), key=lambda x: x[1])
 
+# Text preprocessing
 def preprocess_spanish_text(text: str) -> str:
     doc = nlp(text)
     processed_text = " ".join([token.lemma_.lower() for token in doc 
@@ -129,13 +141,14 @@ def preprocess_spanish_text(text: str) -> str:
     processed_text = processed_text.replace('ia', 'inteligencia artificial')
     return processed_text
 
+# PDF loading function
 @st.cache_data
 def load_pdf(pdf_file: str) -> List[Document]:
     try:
         st.text(f"Cargando archivo PDF: {pdf_file}")
         loader = PyPDFLoader(pdf_file)
         data = loader.load()
-        text_splitter = SpacyTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP)
+        text_splitter = SpacyTextSplitter(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP, pipeline="es_core_news_sm")
         docs = text_splitter.split_documents(data)
         preprocessed_docs = [Document(page_content=preprocess_spanish_text(doc.page_content), metadata=doc.metadata) for doc in docs]
         logger.info("Cargado exitosamente %s", pdf_file)
@@ -146,11 +159,13 @@ def load_pdf(pdf_file: str) -> List[Document]:
         st.error(f"Error cargando {pdf_file}: {str(e)}")
         return []
 
+# TF-IDF weights computation
 def compute_tfidf_weights(docs: List[str]) -> TfidfVectorizer:
     vectorizer = TfidfVectorizer()
     vectorizer.fit(docs)
     return vectorizer
 
+# Create retrieval systems
 @st.cache_resource
 def create_retrieval_systems(_docs: List[Document]) -> Tuple[Optional[Chroma], Optional[BM25LRetriever], Optional[List[Document]], Optional[TfidfVectorizer]]:
     try:
@@ -171,13 +186,16 @@ def create_retrieval_systems(_docs: List[Document]) -> Tuple[Optional[Chroma], O
         st.error(f"Error creando sistemas de recuperación: {str(e)}")
         return None, None, None, None
 
+# Load cross-encoder
 @st.cache_resource
 def load_cross_encoder():
     return CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
+# Query preparation
 def prepare_query(query: str) -> str:
     return preprocess_spanish_text(query)
 
+# Chat history weighting
 def weight_chat_history(chat_history: List[dict], decay_factor: float = 0.8) -> str:
     weighted_history = []
     for i, message in enumerate(reversed(chat_history[-5:])):
@@ -185,12 +203,14 @@ def weight_chat_history(chat_history: List[dict], decay_factor: float = 0.8) -> 
         weighted_history.append(f"{weight:.2f} * {message['content']}")
     return " ".join(reversed(weighted_history))
 
+# Results reranking
 def rerank_results(docs: List[str], query: str, cross_encoder: CrossEncoder, original_scores: List[float]) -> List[str]:
     pairs = [[query, doc] for doc in docs]
     scores = cross_encoder.predict(pairs)
     combined_scores = [0.7 * new_score + 0.3 * original_score for new_score, original_score in zip(scores, original_scores)]
     return [doc for _, doc in sorted(zip(combined_scores, docs), reverse=True)]
 
+# Fallback keyword search
 def fallback_keyword_search(docs: List[Document], query: str) -> str:
     keywords = query.lower().split()
     relevant_docs = []
@@ -285,6 +305,7 @@ async def iterative_retrieval(vectorstore: Chroma, bm25l_retriever: BM25LRetriev
 
     return combined_context
 
+# Save feedback
 def save_feedback(query: str, answer: str, feedback: int):
     feedback_data = {
         "query": query,
@@ -295,6 +316,7 @@ def save_feedback(query: str, answer: str, feedback: int):
         json.dump(feedback_data, f)
         f.write("\n")
 
+# Main function
 def main():
     all_docs = []
     for pdf_file in PDF_FILES:
@@ -365,7 +387,7 @@ def main():
             
         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
-    # Mecanismo de retroalimentación
+    # Feedback mechanism
     if st.button("Enviar Retroalimentación"):
         feedback = st.slider("Califica la calidad de la respuesta (1-5)", 1, 5, 3)
         save_feedback(query, full_response, feedback)
