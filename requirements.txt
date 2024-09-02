@@ -1,6 +1,7 @@
 langchain
 langchain_community
 langchain-google-genai
+pysqlite3-binary
 python-dotenv
 streamlit
 langchain_experimental
