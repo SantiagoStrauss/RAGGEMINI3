@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Streamlit page configuration
-st.set_page_config(page_title="Sistema de Recuperación de Documentos", layout="wide")
+st.set_page_config(page_title="Sistema de Recuperación de Documentos por Santiago Ramos", layout="wide")
 st.title("Sistema de Recuperación de Documentos")
 
 # Configuration
